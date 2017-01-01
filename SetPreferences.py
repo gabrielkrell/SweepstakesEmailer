@@ -23,8 +23,6 @@ import copy
 # 	port=465,
 # 	username='(redacted)'
 # 	password='(redacted)',
-# 	fromA='(redacted)',
-# 	toA='(redacted)',
 # 	message=MIMEText(
 # 		("Hi!  I'd like to request my {attempt} free code of the day." "\n" "\n"
 # 			"Thanks," "\n"
@@ -43,42 +41,53 @@ def editExistingPreferences():
 	# implement me
 	pass
 
+# We need to fill up our data store, a SaveData object, with:
+# - server address
+# - server port
+# - username
+# - password
+# - a MIMEText object with
+#  | - a message
+#  | - a subject
+#  | - a "from" address
+#  | - a "to" address
+
 
 def newPreferences():
 	"""Create a new preferences file and overwrite the old one."""
 	workingPrefs = copy.deepcopy(SweepstakesEmailer._defaultData)
-	getNewMailServer(workingPrefs)
+	# getNewMailServer(workingPrefs)
+	for field in ['server', 'port']:
+		getNewAndConfirmDefaults(
+			workingPrefs,
+			SweepstakesEmailer._defaultData,
+			field)
 
 
-def getNewMailServer(data):
+def getNewAndConfirmDefaults(data, defaults, fieldname):
 	"""Prompt the user for the server's address and store it in data.  The user
 	may change it or do nothing."""
-	temp_address = copy.copy(data.server)
-	if temp_address == SweepstakesEmailer._defaultData.server:
-		dialog = (
-			"Are you using Gmail? Type 'g' for Gmail, 'c' to cancel, or enter "
-			"your server's hostname.")
-	else:
-		dialog = (
-			"Your server is still {0}. Type 'y' to confirm, 'g' to use gmail, "
-			"or enter a new hostname.")
-
-	user_input = input(dialog)
-	if user_input.lower() in 'y yes c':
+	temp = copy.copy(getattr(data, fieldname))
+	dialog = ("""\
+Would you like to
+(d) use the default value for [{f}] ({dv})"
+(c) use the existing value for [{f}] ({cv}) or"
+(n) use a new value for [{f}]?""").format(
+		f=fieldname, dv=getattr(defaults, fieldname), cv=getattr(data, fieldname))
+	print(dialog)
+	user_input = inputHandler('d c n', retry=True)
+	if user_input == 'd':
+		temp = getattr(defaults, fieldname)
+	elif user_input == 'c':
 		pass
-	elif user_input.lower() in 'g gmail':
-		# for now, let's not confirm this since user can't make typos here
-		temp_address = SweepstakesEmailer._defaultData.server
-		data.server = temp_address
-		print("Address set to gmail ({0}).".format(temp_address))
-	else:
-		temp_address = user_input
-		if confirm(
-			prompt="Is {0} the address of your mail server?".format(temp_address),
-			serious=True):
-			data.server = temp_address
+	elif user_input == 'n':
+		user_input = input("Enter a new value for [{f}]".format(f=fieldname))
+		if confirm(serious=False):
+			temp = user_input
 		else:
-			getNewMailServer(data)
+			getNewAndConfirmDefaults(data, defaults, fieldname)
+	setattr(data, fieldname, temp)
+	print("[{f}] set to \"{v}\".".format(f=fieldname, v=temp))
 
 
 def main():
@@ -97,18 +106,6 @@ Exit at any time with Ctrl+C.
 
 	options = {'e': editExistingPreferences, 'n': newPreferences}
 	options[key]()
-
-
-# We need to fill up our data store, a SaveData object, with:
-# - server address
-# - server port
-# - username
-# - password
-# - a MIMEText object with
-#  | - a message
-#  | - a subject
-#  | - a "from" address
-#  | - a "to" address
 
 
 def inputHandler(
