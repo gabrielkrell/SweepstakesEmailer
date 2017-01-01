@@ -87,3 +87,9 @@ ENV/
 
 # Rope project settings
 .ropeproject
+
+
+emailerData.p
+
+# old version with plaintext account info
+unredacted.py

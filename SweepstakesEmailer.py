@@ -4,35 +4,34 @@ import pickle
 import sys
 from random import randint
 from namedlist import namedlist
+from namedlist import namedtuple
 from email.mime.text import MIMEText
 import time
 import math
 
-currentDate = date.today()
-defaultFilename = "emailerData.p"
 
+global SaveData
 SaveData = namedlist(
 	'SaveData',
-	'server port username password fromA toA message sentLog')
+	'server port username password message sentLog')
 
+global DayLogEntry
 DayLogEntry = namedlist('DayLogEntry', 'attempts successes', default=0)
 
-defaultData = SaveData(
+global _defaultData
+_defaultData = SaveData(
 	server='smtp.gmail.com',
 	port=465,
-	username='(redacted)',
-	password='(redacted)',
-	fromA='(redacted)',
-	toA='(redacted)',
+	username=None,
+	password=None,
 	message=MIMEText(
-		("Hi!  I'd like to request my {attempt} free code of the day." "\n" "\n"
-			"Thanks," "\n"
-			"Gabriel")),
+		("Hi!  I'd like to request my {attempt} free code of the day.")),
 	sentLog={})
 
-defaultData.message['Subject'] = "(redacted)"
-defaultData.message['From'] = defaultData.fromA
-defaultData.message['To'] = defaultData.toA
+
+def namedListToTuple(nl):
+	"""Given a named list function, returns a named tuple function."""
+	return namedtuple(nl.__name__, nl.__slots__)
 
 
 def saveData(filename, data, params='wb'):
@@ -47,6 +46,7 @@ def openFile(filename):
 		return file
 	except FileNotFoundError as e:
 		print("couldn't find config file!  Making a new one.")
+		# here we should ask the user for their stuff
 		saveData(filename, defaultData, 'x+b')
 		return openFile(filename)
 
@@ -83,30 +83,55 @@ def sendEmail():
 
 
 def ordinal(n):
-	""" Returns an ordinal abbreviation like st in 1st """
+	""" Returns an ordinal abbreviation like 1st, 2nd, etc. Thanks codegolf """
 	return "%d%s" % (n,"tsnrhtdd"[(math.floor(n/10)%10!=1)*(n%10<4)*n%10::4])
 
 
-data = loadData(defaultFilename)
+if __name__ == '__main__':
+	# actually being run from command line
+	# right now most of the above functions only work when run from the command
+	# line.  Fix that pls so this can be used interactively (over SSH, likely)
 
-try:
-	lastDate = max(data.sentLog.keys())
-except ValueError:
-	# nothing in sentLog; make a dummy val to initialize it
-	lastDate = date.min
-if currentDate > lastDate:
-	data.sentLog[currentDate] = DayLogEntry()
-if currentDate > lastDate or data.sentLog[lastDate].successes < 5:
-	cLogEntry = data.sentLog[currentDate]
-	time.sleep(61 * randint(5, 20))  # ~ between 5 and 20 minutes, but uneven
-	while True:
-		if cLogEntry.attempts - cLogEntry.successes > 5:
-			sys.exit("Too many attempts: {0}".format(data.sentLog[currentDate].attempts))
-		if cLogEntry.successes == 5:
-			sys.exit()
-		delay = randint(20, 40)
-		print("Waiting {0}s to send the next email".format(delay))
-		time.sleep(delay)
-		sendEmail()
-else:
-	print("Already sent emails today; nothing to do.")
+	currentDate = date.today()
+	defaultFilename = "emailerData.p"
+
+	defaultData = SaveData(
+		server='smtp.gmail.com',
+		port=465,
+		username='(redacted)',
+		password='(redacted)',
+		fromA='(redacted)',
+		toA='(redacted)',
+		message=MIMEText(
+			("Hi!  I'd like to request my {attempt} free code of the day." "\n" "\n"
+				"Thanks," "\n"
+				"Gabriel")),
+		sentLog={})
+
+	defaultData.message['Subject'] = "(redacted)"
+	defaultData.message['From'] = defaultData.fromA
+	defaultData.message['To'] = defaultData.toA
+
+	data = loadData(defaultFilename)
+
+	try:
+		lastDate = max(data.sentLog.keys())
+	except ValueError:
+		# nothing in sentLog; make a dummy val to initialize it
+		lastDate = date.min
+	if currentDate > lastDate:
+		data.sentLog[currentDate] = DayLogEntry()
+	if currentDate > lastDate or data.sentLog[lastDate].successes < 5:
+		cLogEntry = data.sentLog[currentDate]
+		time.sleep(61 * randint(5, 20))  # ~ between 5 and 20 minutes, but uneven
+		while True:
+			if cLogEntry.attempts - cLogEntry.successes > 5:
+				sys.exit("Too many attempts: {0}".format(data.sentLog[currentDate].attempts))
+			if cLogEntry.successes == 5:
+				sys.exit()
+			delay = randint(20, 40)
+			print("Waiting {0}s to send the next email".format(delay))
+			time.sleep(delay)
+			sendEmail()
+	else:
+		print("Already sent emails today; nothing to do.")
