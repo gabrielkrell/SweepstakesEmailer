@@ -7,6 +7,9 @@ import sys
 import os
 import time
 
+global unsavedChanges
+unsavedChanges = False
+
 
 class NoValidInputException(Exception):
 	pass
@@ -16,7 +19,7 @@ class NoChoiceMade(Exception):
 	pass
 
 
-def editExistingPreferences(unsavedChanges=False):
+def editExistingPreferences():
 	workingPrefs = SweepstakesEmailer.loadData(SweepstakesEmailer.defaultFilename)
 	while True:
 		clear()
@@ -38,7 +41,7 @@ Message options:
 v. View saved options
 w. Write changes to disk
 q. Quit {0}
-""".format("(unsaved changes!" if unsavedChanges else ""))
+""".format("(unsaved changes!)" if unsavedChanges else ""))
 		choices = {
 			'v': displayPrefs,
 			'w': savePrompt,
@@ -56,7 +59,7 @@ q. Quit {0}
 			pass
 		except ValueError:
 			pass
-		choices[key](unsavedChanges if key == 'q' else workingPrefs)
+		choices[key](workingPrefs)
 
 
 def newPreferences():
@@ -128,7 +131,7 @@ def editMessageText(workingPrefs):
 			f="message text", v=SweepstakesEmailer._defaultData.message._payload))
 	else:
 		workingPrefs.message._payload = newMessageBody
-		print("[{f}] set to \"{v}\".".format(f="message text", v=newMessageBody))
+		print("[{f}] set to \"{v}\".".format(f="message text", v=newMessageBody))#
 	time.sleep(1)
 	clear()
 
@@ -142,11 +145,13 @@ def editPassword(data):
 			if newPassA == newPassB:
 				data.password = newPassA
 				print("Password set.")
+				global unsavedChanges
+				unsavedChanges = True
 				break
 			message = "Passwords didn't match.  Try again? "
 		else:
 			print("Password not set.")
-			break
+			break#
 	time.sleep(1)
 	clear()
 
@@ -196,6 +201,7 @@ def _editL1Field(workingPrefs, field):
 	else:
 		setattr(workingPrefs, field, newValue)
 		print("[{f}] set to \"{v}\".".format(f=field, v=newValue))
+
 	time.sleep(1)
 	clear()
 
@@ -213,7 +219,7 @@ def _editMessageField(workingPrefs, field):
 	else:
 		del(workingPrefs.message[field])
 		workingPrefs.message[field] = newValue
-		print("[{f}] set to \"{v}\".".format(f=field, v=newValue))
+		print("[{f}] set to \"{v}\".".format(f=field, v=newValue))#
 	time.sleep(1)
 	clear()
 
@@ -235,12 +241,16 @@ def getNewAndConfirm(
 	else:
 		user_input = 'n'  # hacky
 	if user_input == 'd' and defaultV:
+		global unsavedChanges
+		unsavedChanges = True
 		return defaultV
 	elif user_input == 'c' and currentV:
 		return currentV
 	elif user_input == 'n':
 		user_input = input("Enter a new value for [{f}]".format(f=fieldname))
 		if confirm(serious=serious):
+			global unsavedChanges
+			unsavedChanges = True
 			return user_input
 		else:
 			if retry:
@@ -255,6 +265,8 @@ def savePrompt(workingPrefs):
 			SweepstakesEmailer.saveData(
 				SweepstakesEmailer.defaultFilename,
 				workingPrefs)
+			global unsavedChanges
+			unsavedChanges = False
 			print('Data saved.')
 			break
 		else:
@@ -262,7 +274,7 @@ def savePrompt(workingPrefs):
 				break
 
 
-def quitPrompt(unsavedChanges):
+def quitPrompt(workingPrefs):
 	if unsavedChanges:
 		prompt = 'Unsaved changes!  Really quit? '
 	else:
@@ -287,6 +299,7 @@ def clear():
 		os.system("clear")
 	else:
 		print("\n" * 120)
+
 
 def inputHandler(
 	options, prompt="", error_msg=None, retry=False, caseSensitive=False):
