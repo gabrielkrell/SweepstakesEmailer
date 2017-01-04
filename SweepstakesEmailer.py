@@ -27,6 +27,13 @@ _defaultData = SaveData(
 	message=MIMEText(
 		("Hi!  I'd like to request my {attempt} free code of the day.")),
 	sentLog={})
+_defaultData.message['Subject'] = "Free Sweepstakes Entry"
+_defaultData.message['From'] = None
+_defaultData.message['To'] = None
+
+
+global defaultFilename
+defaultFilename = "emailerData.p"
 
 
 def namedListToTuple(nl):
@@ -87,31 +94,12 @@ def ordinal(n):
 	return "%d%s" % (n,"tsnrhtdd"[(math.floor(n/10)%10!=1)*(n%10<4)*n%10::4])
 
 
-if __name__ == '__main__':
+def main():
 	# actually being run from command line
 	# right now most of the above functions only work when run from the command
 	# line.  Fix that pls so this can be used interactively (over SSH, likely)
 
 	currentDate = date.today()
-	defaultFilename = "emailerData.p"
-
-	defaultData = SaveData(
-		server='smtp.gmail.com',
-		port=465,
-		username='(redacted)',
-		password='(redacted)',
-		fromA='(redacted)',
-		toA='(redacted)',
-		message=MIMEText(
-			("Hi!  I'd like to request my {attempt} free code of the day." "\n" "\n"
-				"Thanks," "\n"
-				"Gabriel")),
-		sentLog={})
-
-	defaultData.message['Subject'] = "(redacted)"
-	defaultData.message['From'] = defaultData.fromA
-	defaultData.message['To'] = defaultData.toA
-
 	data = loadData(defaultFilename)
 
 	try:
@@ -135,3 +123,11 @@ if __name__ == '__main__':
 			sendEmail()
 	else:
 		print("Already sent emails today; nothing to do.")
+
+
+if __name__ == '__main__':
+	try:
+		main()
+	except KeyboardInterrupt:
+		print('Terminated.')
+		sys.exit(0)

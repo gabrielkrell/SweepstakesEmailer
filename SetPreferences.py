@@ -13,6 +13,7 @@ import math
 import SweepstakesEmailer
 import getpass
 import copy
+import os
 
 
 # currentDate = date.today()
@@ -37,9 +38,31 @@ class NoValidInputException(Exception):
 	pass
 
 
+class NoChoiceMade(Exception):
+	pass
+
+
 def editExistingPreferences():
 	# implement me
 	pass
+
+
+def shorten(string, maxlength=29):
+	"""Would call it 'trim' but that's taken.  Shortens strings for display."""
+	string = str(string)  # let's make sure
+	if len(string) > maxlength - 3:
+		return string[:maxlength - 3] + "..."
+	return string
+
+
+def clear():
+	if os.name == ('nt', 'dos'):
+		os.system("cls")
+	elif os.name == ('linux', 'osx', 'posix'):
+		os.system("clear")
+	else:
+		print("\n" * 120)
+
 
 # We need to fill up our data store, a SaveData object, with:
 # - server address
@@ -56,41 +79,128 @@ def editExistingPreferences():
 def newPreferences():
 	"""Create a new preferences file and overwrite the old one."""
 	workingPrefs = copy.deepcopy(SweepstakesEmailer._defaultData)
-	# getNewMailServer(workingPrefs)
-	for field in ['server', 'port']:
-		getNewAndConfirmDefaults(
-			workingPrefs,
-			SweepstakesEmailer._defaultData,
-			field)
+
+	# server, port have defaults, username default is None
+	for field in ('server', 'port', 'username'):
+		try:
+			newValue = getNewAndConfirm(
+				currentV=getattr(workingPrefs, field),
+				defaultV=getattr(SweepstakesEmailer._defaultData, field),
+				fieldname=field)
+		except NoChoiceMade:
+			print("[{f}] is \"{v}\" (unchanged).".format(
+				f=field, v=getattr(workingPrefs, field)))
+		else:
+			setattr(workingPrefs, field, newValue)
+			print("[{f}] set to \"{v}\".".format(f=field, v=newValue))
+		time.sleep(1)
+		clear()
+
+	workingPrefs.port = int(workingPrefs.port)
+
+	if (workingPrefs.port == SweepstakesEmailer._defaultData.port and
+		workingPrefs.server == SweepstakesEmailer._defaultData.server):
+		del(workingPrefs.message['From'])  # otherwise it'll just add another
+		workingPrefs.message['From'] = str(workingPrefs.username) + "@gmail.com"
+
+	getAndSetNewPassword(workingPrefs)
+	time.sleep(1)
+	clear()
+
+	# now the MIME message:
+	# ._payload: "body text"
+	try:
+		newMessageBody = getNewAndConfirm(
+			currentV=workingPrefs.message._payload,
+			defaultV=SweepstakesEmailer._defaultData.message._payload,
+			fieldname="message text")
+	except NoChoiceMade:
+		print("[{f}] is \"{v}\" (unchanged).".format(
+			f="message text", v=SweepstakesEmailer._defaultData.message._payload))
+	else:
+		workingPrefs.message._payload = newMessageBody
+		print("[{f}] set to \"{v}\".".format(f="message text", v=newMessageBody))
+	time.sleep(1)
+	clear()
+
+	for field in ('Subject', 'From', 'To'):
+		try:
+			newValue = getNewAndConfirm(
+				currentV=workingPrefs.message[field],
+				defaultV=SweepstakesEmailer._defaultData.message[field],
+				fieldname=field,
+				retry=True)
+		except NoChoiceMade:
+			print("[{f}] is \"{v}\" (unchanged).".format(
+				f=field, v=workingPrefs.message[field]))
+		else:
+			del(workingPrefs.message[field])
+			workingPrefs.message[field] = newValue
+			print("[{f}] set to \"{v}\".".format(f=field, v=newValue))
+		time.sleep(1)
+		clear()
+
+	while True:
+		if confirm(prompt="Write changes to disk?", serious=True):
+			SweepstakesEmailer.saveData(
+				SweepstakesEmailer.defaultFilename,
+				workingPrefs)
+			print('Data saved.')
+			break
+		else:
+			if confirm(prompt='Quit without saving changes?', serious=True):
+				break
 
 
-def getNewAndConfirmDefaults(data, defaults, fieldname):
-	"""Prompt the user for the server's address and store it in data.  The user
-	may change it or do nothing."""
-	temp = copy.copy(getattr(data, fieldname))
-	dialog = ("""\
-Would you like to
-(d) use the default value for [{f}] ({dv})"
-(c) use the existing value for [{f}] ({cv}) or"
-(n) use a new value for [{f}]?""").format(
-		f=fieldname, dv=getattr(defaults, fieldname), cv=getattr(data, fieldname))
-	print(dialog)
-	user_input = inputHandler('d c n', retry=True)
-	if user_input == 'd':
-		temp = getattr(defaults, fieldname)
-	elif user_input == 'c':
-		pass
+def getAndSetNewPassword(data):
+	message = "\nEnter a new password? "
+	while True:
+		if confirm(message):
+			newPassA = getpass.getpass()
+			newPassB = getpass.getpass("Password (confirm): ")
+			if newPassA == newPassB:
+				data.password = newPassA
+				print("Password set.")
+				return
+			message = "Passwords didn't match.  Try again? "
+		else:
+			print("Password not set.")
+			return
+
+
+def getNewAndConfirm(
+	fieldname, currentV=None, defaultV=None, retry=True, serious=False):
+	"""Prompt the user for a value, optionally showing the current and default
+	as options,	and return their chosen value.  The user may do nothing,
+	throwing an exception (so you can use try: x = get() except: pass."""
+	if defaultV or currentV:
+		prompt = "".join((
+			"\nWould you like to",
+			"\n(d) use the default value for [{f}] ({dv})" if defaultV else "",
+			"\n(c) use the existing value for [{f}] ({cv})" if currentV else "",
+			" or\n(n) use a new value for [{f}]"))
+		print(prompt.format(
+			f=fieldname, dv=shorten(defaultV), cv=shorten(currentV)))
+		user_input = inputHandler('d c n', retry=True, error_msg="Try again. ")
+	else:
+		user_input = 'n'  # hacky
+	if user_input == 'd' and defaultV:
+		return defaultV
+	elif user_input == 'c' and currentV:
+		return currentV
 	elif user_input == 'n':
 		user_input = input("Enter a new value for [{f}]".format(f=fieldname))
-		if confirm(serious=False):
-			temp = user_input
+		if confirm(serious=serious):
+			return user_input
 		else:
-			getNewAndConfirmDefaults(data, defaults, fieldname)
-	setattr(data, fieldname, temp)
-	print("[{f}] set to \"{v}\".".format(f=fieldname, v=temp))
+			if retry:
+				return getNewAndConfirm(fieldname, currentV, defaultV, retry, serious)
+			else:
+				raise NoChoiceMade()
 
 
 def main():
+	clear()
 	print("""\
 Setting preferences for sweepstakes emailer. This is a program to automatically
 send out a limited number of emails every day.  Schedule it to run daily with
@@ -132,7 +242,7 @@ def confirm(prompt=" Are you sure?", serious=True):
 	go = 'y yes'
 	nogo = 'n no'
 	try:
-		i = inputHandler([go, nogo], prompt + (" (y/N)" if serious else "(Y/n)"))
+		i = inputHandler(go + nogo, prompt + (" (y/N)" if serious else " (Y/n)"))
 	except NoValidInputException:
 		return not serious
 	if serious:
