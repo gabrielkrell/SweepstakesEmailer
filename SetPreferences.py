@@ -1,11 +1,11 @@
 """This file should allow you to set preferences for the SweepstakesEmailer."""
 
-import sys
-import time
 import SweepstakesEmailer
 import getpass
 import copy
+import sys
 import os
+import time
 
 
 class NoValidInputException(Exception):
@@ -17,9 +17,9 @@ class NoChoiceMade(Exception):
 
 
 def editExistingPreferences(unsavedChanges=False):
-	clear()
 	workingPrefs = SweepstakesEmailer.loadData(SweepstakesEmailer.defaultFilename)
 	while True:
+		clear()
 		print("""\
 Enter a number to choose an option, and write changes to disk when you're done.
 
@@ -263,7 +263,11 @@ def savePrompt(workingPrefs):
 
 
 def quitPrompt(unsavedChanges):
-	if confirm('Unsaved changes!  Really quit? '):
+	if unsavedChanges:
+		prompt = 'Unsaved changes!  Really quit? '
+	else:
+		prompt = 'Really quit? '
+	if confirm(prompt):
 		print('Bye.')
 		sys.exit(0)
 
