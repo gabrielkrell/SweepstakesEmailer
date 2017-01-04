@@ -10,15 +10,12 @@ import time
 import math
 
 
-global SaveData
 SaveData = namedlist(
 	'SaveData',
 	'server port username password message sentLog')
 
-global DayLogEntry
 DayLogEntry = namedlist('DayLogEntry', 'attempts successes', default=0)
 
-global _defaultData
 _defaultData = SaveData(
 	server='smtp.gmail.com',
 	port=465,
@@ -32,7 +29,6 @@ _defaultData.message['From'] = None
 _defaultData.message['To'] = None
 
 
-global defaultFilename
 defaultFilename = "emailerData.p"
 
 

@@ -360,7 +360,6 @@ Would you like to:
 	options[key]()
 
 
-global fieldChoiceFunctions
 fieldChoiceFunctions = {
 	1: editServer,
 	2: editPort,
