@@ -17,37 +17,96 @@ class NoChoiceMade(Exception):
 
 
 def editExistingPreferences():
-	# implement me
+	# We need to fill up our data store, a SaveData object, with:
+	# - server address
+	# - server port
+	# - username
+	# - password
+	# - a MIMEText object with
+	#  | - a message
+	#  | - a subject
+	#  | - a "from" address
+	#  | - a "to" address
 	pass
 
+def newPreferences():
+	"""Create a new preferences file and overwrite the old one."""
+	workingPrefs = copy.deepcopy(SweepstakesEmailer._defaultData)
+	editServer(workingPrefs)
+	editPort(workingPrefs)
+	editUsername(workingPrefs)
+	editPassword(workingPrefs)
+	editMessageText(workingPrefs)
+	editSubject(workingPrefs)
+	editFrom(workingPrefs)
+	editTo(workingPrefs)
+	savePrompt(workingPrefs)
 
-def shorten(string, maxlength=29):
-	"""Would call it 'trim' but that's taken.  Shortens strings for display."""
-	string = str(string)  # let's make sure
-	if len(string) > maxlength - 3:
-		return string[:maxlength - 3] + "..."
-	return string
 
-
-def clear():
-	if os.name == ('nt', 'dos'):
-		os.system("cls")
-	elif os.name == ('linux', 'osx', 'posix'):
-		os.system("clear")
+def editMessageText(workingPrefs):
+	try:
+		newMessageBody = getNewAndConfirm(
+			currentV=workingPrefs.message._payload,
+			defaultV=SweepstakesEmailer._defaultData.message._payload,
+			fieldname="message text")
+	except NoChoiceMade:
+		print("[{f}] is \"{v}\" (unchanged).".format(
+			f="message text", v=SweepstakesEmailer._defaultData.message._payload))
 	else:
-		print("\n" * 120)
+		workingPrefs.message._payload = newMessageBody
+		print("[{f}] set to \"{v}\".".format(f="message text", v=newMessageBody))
+	time.sleep(1)
+	clear()
 
 
-# We need to fill up our data store, a SaveData object, with:
-# - server address
-# - server port
-# - username
-# - password
-# - a MIMEText object with
-#  | - a message
-#  | - a subject
-#  | - a "from" address
-#  | - a "to" address
+def editPassword(data):
+	message = "\nEnter a new password? "
+	while True:
+		if confirm(message):
+			newPassA = getpass.getpass()
+			newPassB = getpass.getpass("Password (confirm): ")
+			if newPassA == newPassB:
+				data.password = newPassA
+				print("Password set.")
+				break
+			message = "Passwords didn't match.  Try again? "
+		else:
+			print("Password not set.")
+			break
+	time.sleep(1)
+	clear()
+
+
+def editFrom(workingPrefs):
+	if (workingPrefs.port == SweepstakesEmailer._defaultData.port and
+		workingPrefs.server == SweepstakesEmailer._defaultData.server):
+		del(workingPrefs.message['From'])  # otherwise it'll just add another
+		workingPrefs.message['From'] = str(workingPrefs.username) + "@gmail.com"
+	_editMessageField(workingPrefs, 'From')
+
+
+def editPort(workingPrefs):
+	_editL1Field(workingPrefs, 'port')
+	try:
+		workingPrefs.port = int(workingPrefs.port)
+	except TypeError:  # if it's None for some reason, let it go
+		pass
+
+
+def editServer(workingPrefs):
+	_editL1Field(workingPrefs, 'server')
+
+
+def editUsername(workingPrefs):
+	_editL1Field(workingPrefs, 'username')
+
+
+def editSubject(workingPrefs):
+	_editMessageField(workingPrefs, 'Subject')
+
+
+def editTo(workingPrefs):
+	_editMessageField(workingPrefs, 'To')
 
 
 def _editL1Field(workingPrefs, field):
@@ -85,101 +144,6 @@ def _editMessageField(workingPrefs, field):
 	clear()
 
 
-def editMessageText(workingPrefs):
-	try:
-		newMessageBody = getNewAndConfirm(
-			currentV=workingPrefs.message._payload,
-			defaultV=SweepstakesEmailer._defaultData.message._payload,
-			fieldname="message text")
-	except NoChoiceMade:
-		print("[{f}] is \"{v}\" (unchanged).".format(
-			f="message text", v=SweepstakesEmailer._defaultData.message._payload))
-	else:
-		workingPrefs.message._payload = newMessageBody
-		print("[{f}] set to \"{v}\".".format(f="message text", v=newMessageBody))
-	time.sleep(1)
-	clear()
-
-
-def editFrom(workingPrefs):
-	if (workingPrefs.port == SweepstakesEmailer._defaultData.port and
-		workingPrefs.server == SweepstakesEmailer._defaultData.server):
-		del(workingPrefs.message['From'])  # otherwise it'll just add another
-		workingPrefs.message['From'] = str(workingPrefs.username) + "@gmail.com"
-	_editMessageField(workingPrefs, 'From')
-
-
-def editPort(workingPrefs):
-	_editL1Field(workingPrefs, 'port')
-	try:
-		workingPrefs.port = int(workingPrefs.port)
-	except TypeError:  # if it's None for some reason, let it go
-		pass
-
-
-def editServer(workingPrefs):
-	_editL1Field(workingPrefs, 'server')
-
-
-def editUsername(workingPrefs):
-	_editL1Field(workingPrefs, 'username')
-
-
-def editSubject(workingPrefs):
-	_editMessageField(workingPrefs, 'Subject')
-
-
-def editTo(workingPrefs):
-	_editMessageField(workingPrefs, 'To')
-
-
-def newPreferences():
-	"""Create a new preferences file and overwrite the old one."""
-	workingPrefs = copy.deepcopy(SweepstakesEmailer._defaultData)
-
-	editServer(workingPrefs)
-	editPort(workingPrefs)
-	editUsername(workingPrefs)
-	editPassword(workingPrefs)
-	editMessageText(workingPrefs)
-	editSubject(workingPrefs)
-	editFrom(workingPrefs)
-	editTo(workingPrefs)
-
-	savePrompt(workingPrefs)
-
-
-def savePrompt(workingPrefs):
-	while True:
-		if confirm(prompt="Write changes to disk?", serious=True):
-			SweepstakesEmailer.saveData(
-				SweepstakesEmailer.defaultFilename,
-				workingPrefs)
-			print('Data saved.')
-			break
-		else:
-			if confirm(prompt='Quit without saving changes?', serious=True):
-				break
-
-
-def editPassword(data):
-	message = "\nEnter a new password? "
-	while True:
-		if confirm(message):
-			newPassA = getpass.getpass()
-			newPassB = getpass.getpass("Password (confirm): ")
-			if newPassA == newPassB:
-				data.password = newPassA
-				print("Password set.")
-				break
-			message = "Passwords didn't match.  Try again? "
-		else:
-			print("Password not set.")
-			break
-	time.sleep(1)
-	clear()
-
-
 def getNewAndConfirm(
 	fieldname, currentV=None, defaultV=None, retry=True, serious=False):
 	"""Prompt the user for a value, optionally showing the current and default
@@ -211,24 +175,34 @@ def getNewAndConfirm(
 				raise NoChoiceMade()
 
 
-def main():
-	clear()
-	print("""\
-Setting preferences for sweepstakes emailer. This is a program to automatically
-send out a limited number of emails every day.  Schedule it to run daily with
-cron, etc.
+def savePrompt(workingPrefs):
+	while True:
+		if confirm(prompt="Write changes to disk?", serious=True):
+			SweepstakesEmailer.saveData(
+				SweepstakesEmailer.defaultFilename,
+				workingPrefs)
+			print('Data saved.')
+			break
+		else:
+			if confirm(prompt='Quit without saving changes?', serious=True):
+				break
 
-Exit at any time with Ctrl+C.
-""")
-	key = inputHandler(
-		options='e n E N',
-		prompt="Would you like to edit (e) preferences or start a new (n) file?",
-		error_msg="Please enter 'e' or 'n'. Hit Ctrl+C to quit.",
-		retry=True)
 
-	options = {'e': editExistingPreferences, 'n': newPreferences}
-	options[key]()
+def shorten(string, maxlength=29):
+	"""Would call it 'trim' but that's taken.  Shortens strings for display."""
+	string = str(string)  # let's make sure
+	if len(string) > maxlength - 3:
+		return string[:maxlength - 3] + "..."
+	return string
 
+
+def clear():
+	if os.name == ('nt', 'dos'):
+		os.system("cls")
+	elif os.name == ('linux', 'osx', 'posix'):
+		os.system("clear")
+	else:
+		print("\n" * 120)
 
 def inputHandler(
 	options, prompt="", error_msg=None, retry=False, caseSensitive=False):
@@ -261,6 +235,25 @@ def confirm(prompt=" Are you sure?", serious=True):
 		return i in go  # only affirmative continues
 	else:
 		return i not in nogo  # anything but negative is okay
+
+
+def main():
+	clear()
+	print("""\
+Setting preferences for sweepstakes emailer. This is a program to automatically
+send out a limited number of emails every day.  Schedule it to run daily with
+cron, etc.
+
+Exit at any time with Ctrl+C.
+""")
+	key = inputHandler(
+		options='e n E N',
+		prompt="Would you like to edit (e) preferences or start a new (n) file?",
+		error_msg="Please enter 'e' or 'n'. Hit Ctrl+C to quit.",
+		retry=True)
+
+	options = {'e': editExistingPreferences, 'n': newPreferences}
+	options[key]()
 
 
 if __name__ == '__main__':
