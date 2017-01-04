@@ -16,31 +16,105 @@ class NoChoiceMade(Exception):
 	pass
 
 
-def editExistingPreferences():
-	# We need to fill up our data store, a SaveData object, with:
-	# - server address
-	# - server port
-	# - username
-	# - password
-	# - a MIMEText object with
-	#  | - a message
-	#  | - a subject
-	#  | - a "from" address
-	#  | - a "to" address
-	pass
+def editExistingPreferences(unsavedChanges=False):
+	clear()
+	workingPrefs = SweepstakesEmailer.loadData(SweepstakesEmailer.defaultFilename)
+	while True:
+		print("""\
+Enter a number to choose an option, and write changes to disk when you're done.
+
+Connection options:
+1. server address
+2. server port
+3. username
+4. password
+
+Message options:
+5. message text
+6. subject
+7. "from" address
+8. "to" address
+
+v. View saved options
+w. Write changes to disk
+q. Quit {0}
+""".format("(unsaved changes!" if unsavedChanges else ""))
+		choices = {
+			'v': displayPrefs,
+			'w': savePrompt,
+			'q': quitPrompt
+		}
+		choices.update(fieldChoiceFunctions)
+		key = inputHandler(
+			options="".join(str(x) for x in choices.keys()),
+			prompt="Please choose from the list above: ",
+			error_msg="Please choose from the list above: ",
+			retry=True)
+		try:
+			key = int(key)
+		except TypeError:
+			pass
+		except ValueError:
+			pass
+		choices[key](unsavedChanges if key == 'q' else workingPrefs)
+
 
 def newPreferences():
 	"""Create a new preferences file and overwrite the old one."""
 	workingPrefs = copy.deepcopy(SweepstakesEmailer._defaultData)
-	editServer(workingPrefs)
-	editPort(workingPrefs)
-	editUsername(workingPrefs)
-	editPassword(workingPrefs)
-	editMessageText(workingPrefs)
-	editSubject(workingPrefs)
-	editFrom(workingPrefs)
-	editTo(workingPrefs)
+	for func in fieldChoiceFunctions:
+		func(workingPrefs)
 	savePrompt(workingPrefs)
+
+
+def loadAndDisplayPrefs():
+	workingPrefs = SweepstakesEmailer.loadData(SweepstakesEmailer.defaultFilename)
+	displayPrefs(workingPrefs)
+
+
+def displayPrefs(workingPrefs):
+	output = """\
+{title:^80}
+
+   Server address: {0}
+   Server port: {1}
+   Username: {2}
+   Password: {3}
+m. Message text: {4}
+s. Subject: {5}
+   "From" address: {6}
+   "To" address: {7}
+
+x. Back"""
+	while True:
+		clear()
+		print(output.format(
+			workingPrefs.server,
+			workingPrefs.port,
+			workingPrefs.username,
+			'*' * len(workingPrefs.password),
+			shorten(workingPrefs.message._payload, 70),
+			shorten(workingPrefs.message['Subject'], 70),
+			workingPrefs.message['From'],
+			workingPrefs.message['To'],
+			title="Current preferences:"))
+		key = inputHandler(
+			options='m s x',
+			prompt="Please choose from the list above: ",
+			error_msg="Please choose from the list above: ",
+			retry=True)
+		if key == 'm':
+			clear()
+			print("Message text:\n")
+			print(workingPrefs.message._payload)
+			input("Press enter to continue.")
+		elif key == 's':
+			clear()
+			print("Subject:\n")
+			print(workingPrefs.message['Subject'])
+			input("Press enter to continue.")
+		elif key == 'x':
+			break
 
 
 def editMessageText(workingPrefs):
@@ -188,12 +262,18 @@ def savePrompt(workingPrefs):
 				break
 
 
-def shorten(string, maxlength=29):
+def quitPrompt(unsavedChanges):
+	if confirm('Unsaved changes!  Really quit? '):
+		print('Bye.')
+		sys.exit(0)
+
+
+def shorten(inpString, maxlength=29):
 	"""Would call it 'trim' but that's taken.  Shortens strings for display."""
-	string = str(string)  # let's make sure
-	if len(string) > maxlength - 3:
-		return string[:maxlength - 3] + "..."
-	return string
+	s = str(inpString).replace('\n', ' ').replace('\r', '')
+	if len(s) > maxlength - 3:
+		return s[:maxlength - 3] + "..."
+	return s
 
 
 def clear():
@@ -247,13 +327,32 @@ cron, etc.
 Exit at any time with Ctrl+C.
 """)
 	key = inputHandler(
-		options='e n E N',
-		prompt="Would you like to edit (e) preferences or start a new (n) file?",
-		error_msg="Please enter 'e' or 'n'. Hit Ctrl+C to quit.",
+		options='e v n',
+		prompt="""\
+Would you like to:
+(e) edit preferences,
+(v) view current preferences, or
+(n) start a new file?""",
+		error_msg="Please enter 'e','v', or 'n'. Hit Ctrl+C to quit.",
 		retry=True)
 
-	options = {'e': editExistingPreferences, 'n': newPreferences}
+	options = {
+		'e': editExistingPreferences,
+		'n': newPreferences,
+		'v': loadAndDisplayPrefs}
 	options[key]()
+
+
+global fieldChoiceFunctions
+fieldChoiceFunctions = {
+	1: editServer,
+	2: editPort,
+	3: editUsername,
+	4: editPassword,
+	5: editMessageText,
+	6: editSubject,
+	7: editFrom,
+	8: editTo}
 
 
 if __name__ == '__main__':
