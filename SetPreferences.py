@@ -1,13 +1,12 @@
 """This file should allow you to set preferences for the SweepstakesEmailer."""
 
-import SweepstakesEmailer
-import getpass
-import copy
-import sys
 import os
+import sys
+import copy
 import time
+import getpass
+import SweepstakesEmailer
 
-global unsavedChanges
 unsavedChanges = False
 
 
@@ -65,7 +64,7 @@ q. Quit {0}
 def newPreferences():
 	"""Create a new preferences file and overwrite the old one."""
 	workingPrefs = copy.deepcopy(SweepstakesEmailer._defaultData)
-	for func in fieldChoiceFunctions:
+	for func in fieldChoiceFunctions.values():
 		func(workingPrefs)
 	savePrompt(workingPrefs)
 
@@ -335,29 +334,31 @@ def confirm(prompt=" Are you sure?", serious=True):
 
 
 def main():
-	clear()
-	print("""\
+	while True:
+		clear()
+		print("""\
 Setting preferences for sweepstakes emailer. This is a program to automatically
 send out a limited number of emails every day.  Schedule it to run daily with
 cron, etc.
 
 Exit at any time with Ctrl+C.
-""")
-	key = inputHandler(
-		options='e v n',
-		prompt="""\
+	""")
+		key = inputHandler(
+			options='e v n',
+			prompt="""\
 Would you like to:
 (e) edit preferences,
 (v) view current preferences, or
-(n) start a new file?""",
-		error_msg="Please enter 'e','v', or 'n'. Hit Ctrl+C to quit.",
-		retry=True)
+(n) start a new file?
+""",
+			error_msg="Please enter 'e','v', or 'n'. Hit Ctrl+C to quit.",
+			retry=True)
 
-	options = {
-		'e': editExistingPreferences,
-		'n': newPreferences,
-		'v': loadAndDisplayPrefs}
-	options[key]()
+		options = {
+			'e': editExistingPreferences,
+			'n': newPreferences,
+			'v': loadAndDisplayPrefs}
+		options[key]()
 
 
 fieldChoiceFunctions = {
