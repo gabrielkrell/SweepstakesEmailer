@@ -140,15 +140,16 @@ def newPreferences():
 	editServer(workingPrefs)
 	editPort(workingPrefs)
 	editUsername(workingPrefs)
-	getAndSetNewPassword(workingPrefs)
-	time.sleep(1)
-	clear()
-
+	editPassword(workingPrefs)
 	editMessageText(workingPrefs)
 	editSubject(workingPrefs)
 	editFrom(workingPrefs)
 	editTo(workingPrefs)
 
+	savePrompt(workingPrefs)
+
+
+def savePrompt(workingPrefs):
 	while True:
 		if confirm(prompt="Write changes to disk?", serious=True):
 			SweepstakesEmailer.saveData(
@@ -161,7 +162,7 @@ def newPreferences():
 				break
 
 
-def getAndSetNewPassword(data):
+def editPassword(data):
 	message = "\nEnter a new password? "
 	while True:
 		if confirm(message):
@@ -170,11 +171,13 @@ def getAndSetNewPassword(data):
 			if newPassA == newPassB:
 				data.password = newPassA
 				print("Password set.")
-				return
+				break
 			message = "Passwords didn't match.  Try again? "
 		else:
 			print("Password not set.")
-			return
+			break
+	time.sleep(1)
+	clear()
 
 
 def getNewAndConfirm(
