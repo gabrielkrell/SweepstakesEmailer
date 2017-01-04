@@ -52,10 +52,11 @@ def openFile(filename):
 		file = open(filename, 'r+b')
 		return file
 	except FileNotFoundError as e:
-		print("couldn't find config file!  Making a new one.")
-		# here we should ask the user for their stuff
-		saveData(filename, defaultData, 'x+b')
-		return openFile(filename)
+		print("couldn't find config file!")
+		print("Please make a new one by running SetPreferences.")
+		raise e
+		# saveData(filename, defaultData, 'x+b')
+		# return openFile(filename)
 
 
 def loadData(filename):
@@ -69,13 +70,17 @@ def loadData(filename):
 		f.close()
 
 
-def sendEmail():
+def sendEmail(data, currentDate):
 	for _ in range(3):  # try three times in case of errors
 		s = smtplib.SMTP_SSL(data.server, data.port)
 		s.ehlo()
 		s.login(data.username, data.password)
-		if s.sendmail(data.fromA, data.toA, data.message.as_string().format(
-			attempt=ordinal(data.sentLog[currentDate].attempts + 1))):
+		if s.sendmail(
+			data.message['From'],
+			data.message['To'],
+			data.message.as_string().format(
+				attempt=ordinal(data.sentLog[currentDate].attempts + 1))):
+
 			data.sentLog[currentDate].attempts += 1
 			print("email sending failed")
 			saveData(defaultFilename, data)
@@ -111,6 +116,9 @@ def main():
 		data.sentLog[currentDate] = DayLogEntry()
 	if currentDate > lastDate or data.sentLog[lastDate].successes < 5:
 		cLogEntry = data.sentLog[currentDate]
+		delay = 61 * randint(5, 20)
+		print("Waiting {s} seconds to start ({m} minutes)".format(
+			s=delay, m=delay // 60))
 		time.sleep(61 * randint(5, 20))  # ~ between 5 and 20 minutes, but uneven
 		while True:
 			if cLogEntry.attempts - cLogEntry.successes > 5:
@@ -120,7 +128,7 @@ def main():
 			delay = randint(20, 40)
 			print("Waiting {0}s to send the next email".format(delay))
 			time.sleep(delay)
-			sendEmail()
+			sendEmail(data, currentDate)
 	else:
 		print("Already sent emails today; nothing to do.")
 
