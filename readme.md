@@ -9,5 +9,5 @@ Before use, you should test it by setting it up to send email to yourself.
 
 Written by Gabriel Krell in Jan 2016.
 
-Here's a quick gfy of the editor in action:
+Click for a quick gfy of the editor in action:
 [![](http://i.imgur.com/TN6KEFz.png)](https://gfycat.com/IlliterateBrownFerret)
