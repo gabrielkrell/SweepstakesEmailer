@@ -1,38 +1,12 @@
 """This file should allow you to set preferences for the SweepstakesEmailer."""
 
-import smtplib
-from datetime import date
-import pickle
 import sys
-from random import randint
-from namedlist import namedlist
-from namedlist import namedtuple
-from email.mime.text import MIMEText
 import time
-import math
 import SweepstakesEmailer
 import getpass
 import copy
 import os
 
-
-# currentDate = date.today()
-# defaultFilename = "emailerData.p"
-
-# defaultData = SaveData(
-# 	server='smtp.gmail.com',
-# 	port=465,
-# 	username='(redacted)'
-# 	password='(redacted)',
-# 	message=MIMEText(
-# 		("Hi!  I'd like to request my {attempt} free code of the day." "\n" "\n"
-# 			"Thanks," "\n"
-# 			"Gabriel")),
-# 	sentLog={})
-
-# defaultData.message['Subject'] = "(redacted)"
-# defaultData.message['From'] = defaultData.fromA
-# defaultData.message['To'] = defaultData.toA
 
 class NoValidInputException(Exception):
 	pass
@@ -76,39 +50,42 @@ def clear():
 #  | - a "to" address
 
 
-def newPreferences():
-	"""Create a new preferences file and overwrite the old one."""
-	workingPrefs = copy.deepcopy(SweepstakesEmailer._defaultData)
-
-	# server, port have defaults, username default is None
-	for field in ('server', 'port', 'username'):
-		try:
-			newValue = getNewAndConfirm(
-				currentV=getattr(workingPrefs, field),
-				defaultV=getattr(SweepstakesEmailer._defaultData, field),
-				fieldname=field)
-		except NoChoiceMade:
-			print("[{f}] is \"{v}\" (unchanged).".format(
-				f=field, v=getattr(workingPrefs, field)))
-		else:
-			setattr(workingPrefs, field, newValue)
-			print("[{f}] set to \"{v}\".".format(f=field, v=newValue))
-		time.sleep(1)
-		clear()
-
-	workingPrefs.port = int(workingPrefs.port)
-
-	if (workingPrefs.port == SweepstakesEmailer._defaultData.port and
-		workingPrefs.server == SweepstakesEmailer._defaultData.server):
-		del(workingPrefs.message['From'])  # otherwise it'll just add another
-		workingPrefs.message['From'] = str(workingPrefs.username) + "@gmail.com"
-
-	getAndSetNewPassword(workingPrefs)
+def _editL1Field(workingPrefs, field):
+	"""Internal function - edit top-level preference"""
+	try:
+		newValue = getNewAndConfirm(
+			currentV=getattr(workingPrefs, field),
+			defaultV=getattr(SweepstakesEmailer._defaultData, field),
+			fieldname=field)
+	except NoChoiceMade:
+		print("[{f}] is \"{v}\" (unchanged).".format(
+			f=field, v=getattr(workingPrefs, field)))
+	else:
+		setattr(workingPrefs, field, newValue)
+		print("[{f}] set to \"{v}\".".format(f=field, v=newValue))
 	time.sleep(1)
 	clear()
 
-	# now the MIME message:
-	# ._payload: "body text"
+
+def _editMessageField(workingPrefs, field):
+	try:
+		newValue = getNewAndConfirm(
+			currentV=workingPrefs.message[field],
+			defaultV=SweepstakesEmailer._defaultData.message[field],
+			fieldname=field,
+			retry=True)
+	except NoChoiceMade:
+		print("[{f}] is \"{v}\" (unchanged).".format(
+			f=field, v=workingPrefs.message[field]))
+	else:
+		del(workingPrefs.message[field])
+		workingPrefs.message[field] = newValue
+		print("[{f}] set to \"{v}\".".format(f=field, v=newValue))
+	time.sleep(1)
+	clear()
+
+
+def editMessageText(workingPrefs):
 	try:
 		newMessageBody = getNewAndConfirm(
 			currentV=workingPrefs.message._payload,
@@ -123,22 +100,54 @@ def newPreferences():
 	time.sleep(1)
 	clear()
 
-	for field in ('Subject', 'From', 'To'):
-		try:
-			newValue = getNewAndConfirm(
-				currentV=workingPrefs.message[field],
-				defaultV=SweepstakesEmailer._defaultData.message[field],
-				fieldname=field,
-				retry=True)
-		except NoChoiceMade:
-			print("[{f}] is \"{v}\" (unchanged).".format(
-				f=field, v=workingPrefs.message[field]))
-		else:
-			del(workingPrefs.message[field])
-			workingPrefs.message[field] = newValue
-			print("[{f}] set to \"{v}\".".format(f=field, v=newValue))
-		time.sleep(1)
-		clear()
+
+def editFrom(workingPrefs):
+	if (workingPrefs.port == SweepstakesEmailer._defaultData.port and
+		workingPrefs.server == SweepstakesEmailer._defaultData.server):
+		del(workingPrefs.message['From'])  # otherwise it'll just add another
+		workingPrefs.message['From'] = str(workingPrefs.username) + "@gmail.com"
+	_editMessageField(workingPrefs, 'From')
+
+
+def editPort(workingPrefs):
+	_editL1Field(workingPrefs, 'port')
+	try:
+		workingPrefs.port = int(workingPrefs.port)
+	except TypeError:  # if it's None for some reason, let it go
+		pass
+
+
+def editServer(workingPrefs):
+	_editL1Field(workingPrefs, 'server')
+
+
+def editUsername(workingPrefs):
+	_editL1Field(workingPrefs, 'username')
+
+
+def editSubject(workingPrefs):
+	_editMessageField(workingPrefs, 'Subject')
+
+
+def editTo(workingPrefs):
+	_editMessageField(workingPrefs, 'To')
+
+
+def newPreferences():
+	"""Create a new preferences file and overwrite the old one."""
+	workingPrefs = copy.deepcopy(SweepstakesEmailer._defaultData)
+
+	editServer(workingPrefs)
+	editPort(workingPrefs)
+	editUsername(workingPrefs)
+	getAndSetNewPassword(workingPrefs)
+	time.sleep(1)
+	clear()
+
+	editMessageText(workingPrefs)
+	editSubject(workingPrefs)
+	editFrom(workingPrefs)
+	editTo(workingPrefs)
 
 	while True:
 		if confirm(prompt="Write changes to disk?", serious=True):
